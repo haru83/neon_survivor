@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>네온 서바이버 (Neon Survivor)</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
+        
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #0d0221;
+            color: #f0f0f0;
+            font-family: 'Orbitron', sans-serif;
+        }
+        .game-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        canvas {
+            background-color: #0a041a;
+            border: 2px solid #ff00ff;
+            box-shadow: 0 0 25px #ff00ff, inset 0 0 15px rgba(255, 0, 255, 0.5);
+            display: block;
+            border-radius: 15px;
+            cursor: pointer;
+            touch-action: none;
+        }
+        #ui-container {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 8px 15px;
+            border-radius: 10px;
+            border: 1px solid #ff00ff;
+            box-shadow: 0 0 10px #ff00ff;
+            z-index: 10;
+        }
+        .ui-element {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .ui-label { font-size: 12px; color: #00ffff; text-shadow: 0 0 5px #00ffff; }
+        .ui-value { font-size: 18px; font-weight: bold; }
+        #hp-bar-container { width: 150px; height: 18px; background-color: #333; border: 2px solid #00ffff; border-radius: 10px; overflow: hidden; }
+        #hp-bar { height: 100%; background: linear-gradient(90deg, #00ffff, #00aaff); transition: width 0.3s ease; }
+        #xp-bar-container { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); width: 80%; max-width: 600px; height: 15px; background-color: rgba(0, 0, 0, 0.7); border: 2px solid #ffdd00; border-radius: 8px; overflow: hidden; z-index: 10; }
+        #xp-bar { height: 100%; background: linear-gradient(90deg, #ffdd00, #ffaa00); transition: width 0.3s ease; }
+        #ultimate-gauge-container { width: 150px; height: 18px; background-color: #333; border: 2px solid #ff4500; border-radius: 10px; overflow: hidden; }
+        #ultimate-gauge { height: 100%; background: linear-gradient(90deg, #ff4500, #ff8c00); transition: width 0.3s ease; }
+        #level-up-modal, #game-over-modal, #ai-advice-modal {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(13, 2, 33, 0.95);
+            border: 2px solid #ff00ff;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 0 30px #ff00ff;
+            text-align: center;
+            z-index: 20;
+            width: 90%;
+            max-width: 500px;
+        }
+         #ai-advice-modal {
+            border-color: #00ffff;
+            box-shadow: 0 0 30px #00ffff;
+         }
+        #ai-advice-content {
+            margin: 20px 0;
+            min-height: 50px;
+            line-height: 1.6;
+        }
+        #level-up-modal h2, #game-over-modal h2, #ai-advice-modal h2 { margin-top: 0; color: #00ffff; text-shadow: 0 0 10px #00ffff; }
+        .upgrade-button {
+            background: linear-gradient(145deg, #2a1a4a, #4a2a6a);
+            border: 2px solid #00ffff;
+            color: #f0f0f0;
+            padding: 12px 20px;
+            margin: 8px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+        .upgrade-button.artifact { border-color: #ffd700; box-shadow: 0 0 15px #ffd700; }
+        .upgrade-button:hover { background: linear-gradient(145deg, #4a2a6a, #6a3a8a); box-shadow: 0 0 15px #00ffff; transform: translateY(-2px); }
+        #restart-button, #get-advice-button, #close-advice-button { background: linear-gradient(145deg, #008080, #00b3b3); border: 2px solid #00ffff; color: #f0f0f0; }
+        #start-screen { display: flex; flex-direction: column; justify-content: center; align-items: center; position: absolute; width: 100%; height: 100%; background-color: #0d0221; z-index: 30; }
+        #start-screen h1 { font-size: 3rem; color: #ff00ff; text-shadow: 0 0 15px #ff00ff, 0 0 25px #ff00ff; margin-bottom: 20px; }
+        #start-screen p { font-size: 1rem; color: #00ffff; margin-bottom: 40px; max-width: 90%; text-align: center; line-height: 1.6; }
+        #start-button { padding: 20px 40px; font-size: 1.5rem; background: linear-gradient(145deg, #2a1a4a, #4a2a6a); border: 2px solid #00ffff; color: #f0f0f0; border-radius: 10px; cursor: pointer; transition: all 0.2s ease; }
+        #start-button:hover { background: linear-gradient(145deg, #4a2a6a, #6a3a8a); box-shadow: 0 0 15px #00ffff; }
+        #start-button:disabled { background: #333; cursor: not-allowed; box-shadow: none; }
+        #evolution-toast { display: none; position: absolute; top: 25%; left: 50%; transform: translateX(-50%); padding: 15px 30px; background-color: #fff; color: #111; border-radius: 10px; font-size: 24px; font-weight: bold; z-index: 99; border: 3px solid #ffdd00; box-shadow: 0 0 20px #ffdd00; }
+        #ultimate-button {
+            display: none;
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            width: 70px;
+            height: 70px;
+            background-color: #ff4500;
+            border: 3px solid white;
+            border-radius: 50%;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            font-family: 'Orbitron', sans-serif;
+            cursor: pointer;
+            z-index: 15;
+            box-shadow: 0 0 20px #ff4500;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div id="start-screen">
+            <h1>NEON SURVIVOR</h1>
+            <p>마우스를 클릭하여 이동하고 적들을 피하세요!<br>궁극기 게이지가 차면 궁극기 버튼을 눌러 필살기를 사용하세요!</p>
+            <button id="start-button">게임 시작</button>
+        </div>
+
+        <div id="ui-container"></div>
+
+        <canvas id="gameCanvas"></canvas>
+        <div id="evolution-toast"></div>
+        <button id="ultimate-button">ULT</button>
+
+        <div id="xp-bar-container"><div id="xp-bar"></div></div>
+
+        <div id="level-up-modal">
+            <h2>LEVEL UP!</h2>
+            <div id="upgrade-options"></div>
+        </div>
+        
+        <div id="game-over-modal">
+            <h2>GAME OVER</h2>
+            <p id="final-score"></p>
+            <button id="restart-button" class="upgrade-button">다시 시작</button>
+            <button id="get-advice-button" class="upgrade-button">AI 코치 조언받기</button>
+        </div>
+
+        <div id="ai-advice-modal">
+            <h2>AI 코치</h2>
+            <div id="ai-advice-content">분석 중...</div>
+            <button id="close-advice-button" class="upgrade-button">닫기</button>
+        </div>
+    </div>
+
+    <script>
+        // --- 게임 설정 ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        let animationFrameId, isGameRunning = false, isPaused = false;
+
+        // --- 월드 & 카메라 설정 ---
+        const worldSizeMultiplier = 10;
+        let worldWidth, worldHeight;
+        const camera = { x: 0, y: 0, width: 0, height: 0, zoom: 1 };
+
+        // --- 플레이어 및 조작 설정 ---
+        const player = { x: 0, y: 0, radius: 15, color: '#00ffff', speed: 2.5, maxHp: 100, hp: 100, level: 1, xp: 0, xpToNextLevel: 10, magnetRadius: 100, weapons: [], artifacts: [], ultimateGauge: 0, maxUltimateGauge: 100 };
+        const mouse = { x: 0, y: 0, worldX: 0, worldY: 0, down: false };
+
+        // --- 게임 상태 관리 ---
+        let enemies = [], projectiles = [], enemyProjectiles = [], expGems = [], particles = [], blackhole = null, obstacles = [];
+        let enemySpawnTimer = 0, gameTime = 0;
+
+        // --- 데이터 ---
+        const weaponData = { 'Plasma Drone': { name: '플라즈마 드론', description: '주위를 도는 드론을 소환합니다.', maxLevel: 5, stats: [ { damage: 5, count: 1, speed: 2 }, { damage: 7, count: 1, speed: 2.2 }, { damage: 7, count: 2, speed: 2.2 }, { damage: 10, count: 2, speed: 2.5 }, { damage: 12, count: 3, speed: 2.5 } ] }, 'Ricochet Blade': { name: '리코셰 블레이드', description: '가까운 적에게 튕기는 칼날을 발사합니다.', maxLevel: 5, stats: [ { damage: 10, count: 1, cooldown: 1000, bounces: 1 }, { damage: 12, count: 1, cooldown: 900, bounces: 2 }, { damage: 12, count: 2, cooldown: 900, bounces: 2 }, { damage: 15, count: 2, cooldown: 800, bounces: 3 }, { damage: 18, count: 3, cooldown: 800, bounces: 3 } ] }, 'Gauss Cannon': { name: '가우스 캐논', description: '가장 가까운 적에게 관통 레이저를 발사합니다.', maxLevel: 5, stats: [ { damage: 4, cooldown: 2200 }, { damage: 6, cooldown: 2000 }, { damage: 9, cooldown: 1800 }, { damage: 13, cooldown: 1600 }, { damage: 18, cooldown: 1400 } ] }, 'Neon Storm': { name: '네온 스톰', description: '주위를 영구적으로 회전하는 칼날 폭풍입니다.', evolved: true, stats: { damage: 30, count: 5, speed: 3, radius: 120 } } };
+        const passiveData = { 'Energy Amplifier': { name: '에너지 증폭기 (공격력 +10%)', description: '모든 무기의 공격력을 증가시킵니다.', maxLevel: 5, apply: (p) => p.damageMultiplier = (p.damageMultiplier || 1) * 1.10 }, 'High-Speed Thrusters': { name: '고속 기동 장치 (이속 +10%)', description: '이동 속도를 증가시킵니다.', maxLevel: 5, apply: (p) => p.speed *= 1.10 }, 'Nano Repair Kit': { name: '나노 수리 키트 (초당 HP +0.5)', description: '체력을 서서히 회복시킵니다.', maxLevel: 5, apply: (p) => p.hpRegen = (p.hpRegen || 0) + 0.5 }, 'Experience Magnet': { name: '경험치 자석 (범위 +20%)', description: '에너지 코어 획득 범위를 넓힙니다.', maxLevel: 5, apply: (p) => p.magnetRadius *= 1.20 } };
+        const artifactData = { 'Reflector Core': { name: '[아티팩트] 리플렉터 코어', description: '주위를 돌며 적의 공격을 막고 반격하는 방어막 생성' }, 'Overclock Chip': { name: '[아티팩트] 오버클럭 칩', description: '체력이 낮을수록 공격 및 이동 속도 대폭 증가' } };
+        let passiveItems = {};
+        const evolutionData = { 'Neon Storm': { baseWeapon: 'Ricochet Blade', passiveItem: 'Energy Amplifier', minWeaponLevel: 5, } };
+
+        function initializeWeapon(name) {
+             const data = weaponData[name]; if (!data) return;
+             const weapon = { name: name, level: 1, timer: 0, blades: [] };
+             if (data.stats && !data.evolved) weapon.cooldown = data.stats[0].cooldown;
+             if (name === 'Plasma Drone') { weapon.drones = []; for (let i = 0; i < data.stats[0].count; i++) weapon.drones.push({ angle: (i / data.stats[0].count) * 2 * Math.PI, distance: 70 }); } 
+             else if (name === 'Neon Storm') { const stats = data.stats; for (let i = 0; i < stats.count; i++) weapon.blades.push({ angle: (i / stats.count) * 2 * Math.PI, distance: stats.radius }); }
+             player.weapons.push(weapon);
+        }
+
+        function resetGame() {
+            const p = player;
+            worldWidth = canvas.width * worldSizeMultiplier;
+            worldHeight = canvas.height * worldSizeMultiplier;
+            p.x = worldWidth / 2; p.y = worldHeight / 2;
+            p.hp = p.maxHp; p.level = 1; p.xp = 0; p.xpToNextLevel = 10; p.speed = 2.5; p.magnetRadius = 100;
+            p.hpRegen = 0; p.damageMultiplier = 1; p.weapons = []; p.artifacts = []; p.ultimateGauge = 0;
+            passiveItems = {}; enemies = []; projectiles = []; enemyProjectiles = []; expGems = []; particles = []; obstacles = [];
+            gameTime = 0; enemySpawnTimer = 0; blackhole = null;
+            mouse.worldX = p.x; mouse.worldY = p.y;
+            generateObstacles();
+            initializeWeapon('Ricochet Blade');
+            updateUI();
+        }
+
+        function generateObstacles() {
+            const numObstacles = 60; 
+            const safeZone = 400;
+            for (let i = 0; i < numObstacles; i++) {
+                let x, y;
+                const isRect = Math.random() > 0.5;
+                const color = `hsl(${180 + Math.random() * 60}, 50%, 20%)`;
+                if(isRect) {
+                    const width = 40 + Math.random() * 80;
+                    const height = 40 + Math.random() * 80;
+                    const hp = (width + height) * 5;
+                    do {
+                        x = Math.random() * (worldWidth - width);
+                        y = Math.random() * (worldHeight - height);
+                    } while (Math.hypot(x - player.x, y - player.y) < safeZone);
+                    obstacles.push({type: 'rect', x, y, width, height, color, hp, maxHp: hp});
+                } else {
+                    const radius = 20 + Math.random() * 30;
+                    const hp = radius * 20;
+                    do {
+                        x = radius + Math.random() * (worldWidth - radius * 2);
+                        y = radius + Math.random() * (worldHeight - radius * 2);
+                    } while (Math.hypot(x - player.x, y - player.y) < safeZone);
+                    obstacles.push({type: 'circle', x, y, radius, color, hp, maxHp: hp});
+                }
+            }
+        }
+        
+        function setupCanvas() {
+            const w = window.innerWidth, h = window.innerHeight;
+            const size = Math.min(w, h) * 0.95;
+            canvas.width = size;
+            canvas.height = size;
+            camera.width = canvas.width;
+            camera.height = canvas.height;
+            resetGame();
+        }
+        
+        function updateMousePos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            mouse.worldX = clientX - rect.left + camera.x;
+            mouse.worldY = clientY - rect.top + camera.y;
+        }
+
+        // --- 이벤트 리스너 ---
+        canvas.addEventListener('mousedown', e => { mouse.down = true; updateMousePos(e); });
+        canvas.addEventListener('mouseup', e => { mouse.down = false; });
+        canvas.addEventListener('mousemove', e => { if(mouse.down) updateMousePos(e); });
+        canvas.addEventListener('touchstart', e => { e.preventDefault(); mouse.down = true; updateMousePos(e); }, { passive: false });
+        canvas.addEventListener('touchend', e => { e.preventDefault(); mouse.down = false; });
+        canvas.addEventListener('touchmove', e => { e.preventDefault(); if(mouse.down) updateMousePos(e); }, { passive: false });
+        window.addEventListener('resize', () => { if (isGameRunning) setupCanvas(); });
+        document.getElementById('start-button').addEventListener('click', startGame);
+        document.getElementById('restart-button').addEventListener('click', startGame);
+        document.getElementById('ultimate-button').addEventListener('click', activateUltimate);
+        document.getElementById('get-advice-button').addEventListener('click', getAIAdvice);
+        document.getElementById('close-advice-button').addEventListener('click', () => { document.getElementById('ai-advice-modal').style.display = 'none'; });
+
+        function startGame() {
+            document.getElementById('start-screen').style.display = 'none';
+            document.getElementById('game-over-modal').style.display = 'none';
+            setupCanvas();
+            isGameRunning = true;
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+        
+        // --- 게임 로직 ---
+        function update() {
+            if (isPaused) return;
+            const deltaTime = 16; gameTime += deltaTime;
+            updatePlayerMovement();
+            updateCamera();
+            if (player.hpRegen > 0) player.hp = Math.min(player.maxHp, player.hp + player.hpRegen * (deltaTime / 1000));
+            updateWeapons(deltaTime); updateProjectiles(); updateEnemies(deltaTime);
+            updateUltimate(deltaTime); updateArtifacts(deltaTime); updateObstacles();
+            updateExpGems(); updateParticles();
+            checkCollisions(); updateUI();
+        }
+
+        function updatePlayerMovement() {
+            let s = player.speed; if (player.artifacts.includes('Overclock Chip')) { s *= (1 + (1 - (player.hp / player.maxHp)) * 1.5); }
+            if (Math.hypot(mouse.worldX - player.x, mouse.worldY - player.y) > player.radius) {
+                const angle = Math.atan2(mouse.worldY - player.y, mouse.worldX - player.x);
+                let nextX = player.x + Math.cos(angle) * s;
+                let nextY = player.y + Math.sin(angle) * s;
+                
+                if(!isCollidingWithObstacles(nextX, nextY, player.radius)) {
+                    player.x = nextX;
+                    player.y = nextY;
+                } else if (!isCollidingWithObstacles(nextX, player.y, player.radius)) {
+                    player.x = nextX;
+                } else if (!isCollidingWithObstacles(player.x, nextY, player.radius)) {
+                    player.y = nextY;
+                }
+            }
+            player.x = Math.max(player.radius, Math.min(worldWidth - player.radius, player.x));
+            player.y = Math.max(player.radius, Math.min(worldHeight - player.radius, player.y));
+        }
+        function updateCamera() { camera.x = player.x - camera.width / 2; camera.y = player.y - camera.height / 2; camera.x = Math.max(0, Math.min(worldWidth - camera.width, camera.x)); camera.y = Math.max(0, Math.min(worldHeight - camera.height, camera.y)); }
+        function updateWeapons(deltaTime) { player.weapons.forEach(w => { const d = weaponData[w.name]; if (!d) return; let c = 1.0; if (player.artifacts.includes('Overclock Chip')) { c = 1 - ((1 - (player.hp / player.maxHp)) * 0.75); } if (d.evolved) { if (w.name === 'Neon Storm') w.blades.forEach(b => b.angle += d.stats.speed * (deltaTime / 1000)); } else { const s = d.stats[w.level - 1]; if (w.name === 'Plasma Drone') { w.drones.forEach(dr => dr.angle += s.speed * (deltaTime / 1000)); } else { w.timer += deltaTime; if (w.timer >= s.cooldown * c) { w.timer = 0; fireWeapon(w); } } } }); }
+        function fireWeapon(weapon) { const d = weaponData[weapon.name]; if (!d) return; const s = d.stats[weapon.level - 1]; const dmg = s.damage * player.damageMultiplier; let targets = findNearestEnemies(s.count); if (targets.length === 0) return; targets.forEach(t => { if (weapon.name === 'Ricochet Blade') { const a = Math.atan2(t.y - player.y, t.x - player.x); projectiles.push({ type: 'blade', x: player.x, y: player.y, radius: 8, speed: 7, vx: Math.cos(a) * 7, vy: Math.sin(a) * 7, damage: dmg, lifetime: 180, bouncesLeft: s.bounces, color: '#00ff7f' }); } if (weapon.name === 'Gauss Cannon') { createScreenShake(5, 150); projectiles.push({ type: 'laser', x1: player.x, y1: player.y, x2: t.x, y2: t.y, damage: dmg, lifetime: 20, width: 10, color: '#00bfff' }); } }); }
+        function updateProjectiles() {
+            [projectiles, enemyProjectiles].forEach(arr => {
+                for (let i = arr.length - 1; i >= 0; i--) {
+                    const p = arr[i];
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.lifetime--;
+                    if (p.lifetime <= 0 || p.x < 0 || p.x > worldWidth || p.y < 0 || p.y > worldHeight || isCollidingWithObstacles(p.x, p.y, p.radius, p.damage)) {
+                        arr.splice(i, 1);
+                    }
+                }
+            });
+        }
+        function updateEnemies(deltaTime) { enemySpawnTimer += deltaTime; const spawnInterval = Math.max(200, 3000 - gameTime / 100); if (enemySpawnTimer > spawnInterval) { enemySpawnTimer = 0; const waveSize = 1 + Math.floor(gameTime / 15000); for (let i = 0; i < waveSize; i++) spawnEnemy(); } enemies.forEach(e => { if (e.type === 'Turret' || (e.type === 'Stinger' && e.attackMode)) { e.timer -= deltaTime; if (e.timer <= 0) { e.timer = e.cooldown; if(e.type === 'Turret') {const baseAngle = Math.atan2(player.y - e.y, player.x - e.x); const spread = Math.PI / 15; for(let i=-1; i<=1; i++){ const angle = baseAngle + spread * i; enemyProjectiles.push({ x: e.x, y: e.y, radius: 5, color: '#ff4d4d', vx: Math.cos(angle) * 3, vy: Math.sin(angle) * 3, damage: 10, lifetime: 240 }); } } else { const a = Math.atan2(player.y - e.y, player.x - e.x); enemyProjectiles.push({ x: e.x, y: e.y, radius: 4, color: '#ffaa00', vx: Math.cos(a) * 4, vy: Math.sin(a) * 4, damage: 8, lifetime: 180 }); } } } else if (blackhole) { const a = Math.atan2(blackhole.y - e.y, blackhole.x - e.x); e.x += Math.cos(a) * blackhole.pullForce; e.y += Math.sin(a) * blackhole.pullForce; } else { if(e.type === 'Stinger' && Math.hypot(player.x - e.x, player.y - e.y) < 300) { e.attackMode = true; } else {const angle = Math.atan2(player.y - e.y, player.x - e.x); let nextX = e.x + Math.cos(angle) * e.speed; let nextY = e.y + Math.sin(angle) * e.speed; if(!isCollidingWithObstacles(nextX, nextY, e.radius)) { e.x = nextX; e.y = nextY; } else if(!isCollidingWithObstacles(nextX, e.y, e.radius)) { e.x = nextX; } else if(!isCollidingWithObstacles(e.x, nextY, e.radius)) { e.y = nextY; } } } }); }
+        function updateUltimate(deltaTime) { if (!blackhole) return; blackhole.lifetime -= deltaTime; blackhole.radius = 10 + 40 * (1 - blackhole.lifetime / blackhole.maxLifetime); if (blackhole.lifetime <= 0) { createScreenShake(20, 500); const r = 250; for (let i = enemies.length - 1; i >= 0; i--) { if (Math.hypot(blackhole.x - enemies[i].x, blackhole.y - enemies[i].y) < r) damageEnemy(enemies[i], 500, i); } createParticleExplosion(blackhole.x, blackhole.y, '#ffffff', 100); blackhole = null; } }
+        function updateArtifacts(deltaTime) { if (player.artifacts.includes('Reflector Core')) { if (!player.reflector) player.reflector = { angle: 0, cooldown: 0 }; player.reflector.angle += 2 * (deltaTime / 1000); if (player.reflector.cooldown > 0) player.reflector.cooldown -= deltaTime; } }
+        function updateObstacles() { for (let i = obstacles.length - 1; i >= 0; i--) { if (obstacles[i].hp <= 0) { createParticleExplosion(obstacles[i].x + (obstacles[i].width || 0) / 2, obstacles[i].y + (obstacles[i].height || 0) / 2, '#888888', 50); obstacles.splice(i, 1); } } }
+        function spawnEnemy() {
+            let pos, tries = 0;
+            do {
+                pos = getSpawnPosition(15);
+                tries++;
+            } while (isCollidingWithObstacles(pos.x, pos.y, 15) && tries < 10);
+            if (tries >= 10) return; 
+
+            const r = 10 + Math.random() * 10;
+            let hp, speed, color, value, type;
+            const tf = gameTime / 60000;
+            if (gameTime > 20000 && Math.random() < 0.2) { type = 'Turret'; hp = 30 + tf * 20; speed = 0; color = '#f5b041'; value = 5; }
+            else if (Math.random() < 0.2 + tf * 0.2) { type = 'Stinger'; hp = 5 + tf * 10; speed = 1 + Math.random() * 0.5; color = '#ff8800'; value = 3; }
+            else { type = 'Grunt'; hp = 10 + tf * 20; speed = 0.5 + Math.random() * 0.25; color = '#ff00ff'; value = 1; }
+            enemies.push({ x: pos.x, y: pos.y, radius: r, hp, maxHp: hp, speed, color, value, type, timer: Math.random() * 1250, cooldown: 1250, attackMode: false });
+        }
+        function getSpawnPosition(r) { let x, y; if (Math.random() < 0.5) { x = camera.x + (Math.random() < 0.5 ? -r : camera.width + r); y = camera.y + Math.random() * camera.height; } else { x = camera.x + Math.random() * camera.width; y = camera.y + (Math.random() < 0.5 ? -r : camera.height + r); } return { x, y }; }
+        function updateExpGems() { expGems.forEach(g => { if (Math.hypot(player.x - g.x, player.y - g.y) < player.magnetRadius) { const a = Math.atan2(player.y - g.y, player.x - g.x); g.x += Math.cos(a) * 5; g.y += Math.sin(a) * 5; } }); }
+        function updateParticles() { particles = particles.filter(p => { p.x += p.vx; p.y += p.vy; p.vy += 0.1; p.alpha -= 0.02; return p.alpha > 0; }); }
+
+        function checkCollisions() {
+            for (let i = projectiles.length - 1; i >= 0; i--) { const p = projectiles[i]; if (!p) continue; for (let j = enemies.length - 1; j >= 0; j--) { const e = enemies[j]; if (!e) continue; if (p.type === 'laser') { if (pointLineSegmentDistance(e.x, e.y, p.x1, p.y1, p.x2, p.y2) < e.radius + p.width / 2) damageEnemy(e, p.damage, j); } else if (Math.hypot(p.x - e.x, p.y - e.y) < p.radius + e.radius) { damageEnemy(e, p.damage, j); if (p.type === 'blade') { if (p.bouncesLeft > 0) { p.bouncesLeft--; const t = findNearestEnemy(e); if (t) { const a = Math.atan2(t.y - p.y, t.x - p.x); p.vx = Math.cos(a) * p.speed; p.vy = Math.sin(a) * p.speed; } else { projectiles.splice(i, 1); break; } } else { projectiles.splice(i, 1); break; } } else { projectiles.splice(i, 1); break; } } } }
+            for (let i = enemyProjectiles.length - 1; i >= 0; i--) { const p = enemyProjectiles[i]; if (!p) continue; if (player.artifacts.includes('Reflector Core')) { const shieldX = player.x + Math.cos(player.reflector.angle) * 30; const shieldY = player.y + Math.sin(player.reflector.angle) * 30; if (Math.hypot(shieldX - p.x, shieldY - p.y) < 20) { enemyProjectiles.splice(i, 1); if (player.reflector.cooldown <= 0) { player.reflector.cooldown = 500; const t = findNearestEnemies(1)[0]; if (t) { const a = Math.atan2(t.y - player.y, t.x - player.x); projectiles.push({ type: 'blade', x: player.x, y: player.y, radius: 5, speed: 8, vx: Math.cos(a) * 8, vy: Math.sin(a) * 8, damage: 25, lifetime: 120, bouncesLeft: 0, color: '#ffffff' }); } } continue; } } if (Math.hypot(p.x - player.x, p.y - player.y) < p.radius + player.radius) { damagePlayer(p.damage); enemyProjectiles.splice(i, 1); } }
+            for (let i = enemies.length - 1; i >= 0; i--) { const e = enemies[i]; if (!e) continue; if (Math.hypot(player.x - e.x, player.y - e.y) < player.radius + e.radius) { damagePlayer(10); damageEnemy(e, 100, i); } }
+            player.weapons.forEach(w => { const d = weaponData[w.name]; if (!d) return; if (w.name === 'Plasma Drone' || w.name === 'Neon Storm') { const items = w.drones || w.blades; const r = w.name === 'Neon Storm' ? 12 : 8; const s = d.evolved ? d.stats : d.stats[w.level - 1]; const dmg = s.damage * player.damageMultiplier; items.forEach(item => { const itemX = player.x + Math.cos(item.angle) * item.distance; const itemY = player.y + Math.sin(item.angle) * item.distance; for (let i = enemies.length - 1; i >= 0; i--) { const e = enemies[i]; if (!e) continue; if (Math.hypot(itemX - e.x, itemY - e.y) < r + e.radius) damageEnemy(e, dmg, i); } }); } });
+            for (let i = expGems.length - 1; i >= 0; i--) { const g = expGems[i]; if (!g) continue; if (Math.hypot(player.x - g.x, player.y - g.y) < player.radius + g.radius) { collectExp(g.value); expGems.splice(i, 1); } }
+        }
+        
+        function damageEnemy(enemy, amount, index) { if (!enemy) return; enemy.hp -= amount; if (enemy.hp <= 0) { createParticleExplosion(enemy.x, enemy.y, enemy.color, 20); expGems.push({ x: enemy.x, y: enemy.y, radius: 5, value: enemy.value }); player.ultimateGauge = Math.min(player.maxUltimateGauge, player.ultimateGauge + enemy.value); enemies.splice(index, 1); } }
+        function damagePlayer(amount) { if (player.hp <= 0) return; player.hp -= amount; createScreenShake(8, 200); if (player.hp <= 0) gameOver(); }
+        function collectExp(amount) { player.xp += amount; if (player.xp >= player.xpToNextLevel) levelUp(); }
+
+        function levelUp() { isPaused = true; player.xp -= player.xpToNextLevel; player.level++; player.xpToNextLevel = Math.floor(player.xpToNextLevel * 1.8); player.hp = player.maxHp; const opts = getUpgradeOptions(); const cont = document.getElementById('upgrade-options'); cont.innerHTML = ''; opts.forEach(opt => { const btn = document.createElement('button'); btn.className = `upgrade-button ${opt.type === 'artifact' ? 'artifact' : ''}`; btn.innerHTML = `${opt.name}<br><small>${opt.description}</small>`; btn.onclick = () => selectUpgrade(opt); cont.appendChild(btn); }); document.getElementById('level-up-modal').style.display = 'block'; }
+        
+        function getUpgradeOptions() {
+            let options = []; const unownedArtifacts = Object.keys(artifactData).filter(art => !player.artifacts.includes(art));
+            if (unownedArtifacts.length > 0 && Math.random() < 0.2) { const id = unownedArtifacts[Math.floor(Math.random() * unownedArtifacts.length)]; options.push({ type: 'artifact', id: id, ...artifactData[id] }); }
+            const availableWeapons = Object.keys(weaponData).filter(w => !weaponData[w].evolved && !player.weapons.find(pw => pw.name === w));
+            const upgradeableWeapons = player.weapons.filter(w => weaponData[w.name] && !weaponData[w.name].evolved && w.level < weaponData[w.name].maxLevel);
+            const availablePassives = Object.keys(passiveData).filter(p => !passiveItems[p] || passiveItems[p] < passiveData[p].maxLevel);
+            const pool = [ ...upgradeableWeapons.map(w => ({ type: 'weapon_upgrade', id: w.name, name: `[강화] ${weaponData[w.name].name}`, description: `레벨 ${w.level+1}로 강화됩니다.` })), ...availableWeapons.map(w => ({ type: 'weapon_new', id: w, ...weaponData[w] })), ...availablePassives.map(p => ({ type: 'passive', id: p, ...passiveData[p] })) ];
+            pool.sort(() => 0.5 - Math.random());
+            while (options.length < 3 && pool.length > 0) { const item = pool.shift(); if (!options.some(opt => opt.id === item.id)) options.push(item); }
+            return options;
+        }
+        
+        function checkForEvolutions() { for (const evoName in evolutionData) { const r = evolutionData[evoName]; if (player.weapons.some(w => w.name === evoName)) continue; const base = player.weapons.find(w => w.name === r.baseWeapon); const passive = passiveItems[r.passiveItem]; if (base && base.level >= r.minWeaponLevel && passive) { const index = player.weapons.findIndex(w => w.name === r.baseWeapon); player.weapons.splice(index, 1); initializeWeapon(evoName); showEvolutionToast(evoName); } } }
+        
+        function selectUpgrade(option) {
+            if (option.type === 'artifact') player.artifacts.push(option.id);
+            else if (option.type === 'weapon_new') initializeWeapon(option.id);
+            else if (option.type === 'weapon_upgrade') { const w = player.weapons.find(w => w.name === option.id); if (w) { w.level++; if (w.name === 'Plasma Drone') { w.drones = []; const s = weaponData[w.name].stats[w.level - 1]; for (let i = 0; i < s.count; i++) w.drones.push({ angle: (i / s.count) * 2 * Math.PI, distance: 70 }); } } }
+            else if (option.type === 'passive') { passiveData[option.id].apply(player); passiveItems[option.id] = (passiveItems[option.id] || 0) + 1; }
+            document.getElementById('level-up-modal').style.display = 'none'; isPaused = false; checkForEvolutions();
+        }
+
+        function activateUltimate() { if (isPaused || blackhole) return; if (player.ultimateGauge >= player.maxUltimateGauge) { player.ultimateGauge = 0; blackhole = { x: player.x, y: player.y, radius: 10, pullForce: 4, lifetime: 3000, maxLifetime: 3000, rotation: 0 }; } }
+        function gameOver() { if (!isGameRunning) return; isGameRunning = false; cancelAnimationFrame(animationFrameId); document.getElementById('final-score').innerText = `생존 시간: ${Math.floor(gameTime / 1000)}초`; document.getElementById('game-over-modal').style.display = 'block'; }
+
+        // --- 그리기 및 UI ---
+        function draw() { ctx.save(); ctx.translate(-camera.x, -camera.y); drawBackground(); obstacles.forEach(drawObstacle); expGems.forEach(drawExpGem); if(blackhole)drawBlackhole(); enemyProjectiles.forEach(drawEnemyProjectile); enemies.forEach(drawEnemy); drawPlayer(); projectiles.forEach(drawProjectile); player.weapons.forEach(drawWeapon); if(player.artifacts.includes('Reflector Core'))drawReflectorShield(); particles.forEach(drawParticle); ctx.restore(); }
+        function drawBackground() { ctx.fillStyle = '#0a041a'; ctx.fillRect(camera.x, camera.y, camera.width, camera.height); ctx.strokeStyle = "rgba(0, 255, 255, 0.15)"; ctx.lineWidth = 2; const startX = Math.floor(camera.x / 50) * 50; const startY = Math.floor(camera.y / 50) * 50; for (let i = startX; i < camera.x + camera.width; i += 50) { ctx.beginPath(); ctx.moveTo(i, camera.y); ctx.lineTo(i, camera.y + camera.height); ctx.stroke(); } for (let i = startY; i < camera.y + camera.height; i += 50) { ctx.beginPath(); ctx.moveTo(camera.x, i); ctx.lineTo(camera.x + camera.width, i); ctx.stroke(); } }
+        function drawObstacle(obs) { ctx.save(); ctx.globalAlpha = 0.5 + 0.5 * (obs.hp / obs.maxHp); ctx.fillStyle = obs.color; ctx.strokeStyle = `hsl(140, 100%, ${20 + 30 * (obs.hp/obs.maxHp)}%)`; ctx.lineWidth = 3; if (obs.type === 'rect') { ctx.fillRect(obs.x, obs.y, obs.width, obs.height); ctx.strokeRect(obs.x, obs.y, obs.width, obs.height); } else { ctx.beginPath(); ctx.arc(obs.x, obs.y, obs.radius, 0, 2 * Math.PI); ctx.fill(); ctx.stroke(); } ctx.restore(); if (obs.hp < obs.maxHp) { let barWidth, barX, barY; if (obs.type === 'rect') { barWidth = obs.width; barX = obs.x; barY = obs.y - 15; } else { barWidth = obs.radius * 2; barX = obs.x - obs.radius; barY = obs.y - obs.radius - 15; } ctx.fillStyle = '#333'; ctx.fillRect(barX, barY, barWidth, 8); ctx.fillStyle = '#4caf50'; ctx.fillRect(barX, barY, barWidth * (obs.hp / obs.maxHp), 8); }}
+        function drawEnemyProjectile(p) { ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, 2 * Math.PI); ctx.fillStyle = p.color; ctx.shadowColor = p.color; ctx.shadowBlur = 10; ctx.fill(); ctx.shadowBlur = 0; }
+        function drawReflectorShield() { if(!player.reflector) return; const x = player.x + Math.cos(player.reflector.angle) * 30, y = player.y + Math.sin(player.reflector.angle) * 30; ctx.beginPath(); ctx.arc(x, y, 10, 0, 2*Math.PI); ctx.fillStyle='rgba(255, 255, 255, 0.5)'; ctx.strokeStyle='white'; ctx.lineWidth=2; ctx.stroke(); ctx.fill(); }
+        function drawPlayer() { ctx.beginPath();ctx.arc(player.x,player.y,player.radius,0,2*Math.PI);ctx.fillStyle=player.color;ctx.shadowColor=player.color;ctx.shadowBlur=15;ctx.fill();ctx.shadowBlur=0; }
+        function drawEnemy(e) { ctx.beginPath();ctx.arc(e.x,e.y,e.radius,0,2*Math.PI);ctx.fillStyle=e.color;ctx.shadowColor=e.color;ctx.shadowBlur=10;ctx.fill();ctx.shadowBlur=0;if(e.hp<e.maxHp){const w=e.radius*2;ctx.fillStyle='#333';ctx.fillRect(e.x-e.radius,e.y-e.radius-10,w,5);ctx.fillStyle='#f00';ctx.fillRect(e.x-e.radius,e.y-e.radius-10,w*(e.hp/e.maxHp),5);} }
+        function drawProjectile(p) { ctx.beginPath();if(p.type==='laser'){ctx.strokeStyle=p.color;ctx.lineWidth=p.width*(p.lifetime/20);ctx.shadowColor=p.color;ctx.shadowBlur=20;ctx.moveTo(p.x1,p.y1);ctx.lineTo(p.x2,p.y2);ctx.stroke();}else{ctx.arc(p.x,p.y,p.radius,0,2*Math.PI);ctx.fillStyle=p.color;ctx.shadowColor=p.color;ctx.shadowBlur=15;ctx.fill();} ctx.shadowBlur=0;ctx.lineWidth=1; }
+        function drawWeapon(w) { const d=weaponData[w.name];if(!d)return; if(w.name==='Plasma Drone'||w.name==='Neon Storm'){const i=w.drones||w.blades,r=w.name==='Neon Storm'?12:8;let c='#87cefa';if(w.name==='Neon Storm')c='#39ff14';i.forEach(item=>{const x=player.x+Math.cos(item.angle)*item.distance,y=player.y+Math.sin(item.angle)*item.distance;ctx.beginPath();ctx.arc(x,y,r,0,2*Math.PI);ctx.fillStyle=c;ctx.shadowColor=c;ctx.shadowBlur=15;ctx.fill();ctx.shadowBlur=0;});}}
+        function drawBlackhole() { if(!blackhole)return;blackhole.rotation+=0.1;ctx.save();ctx.translate(blackhole.x,blackhole.y);ctx.rotate(blackhole.rotation);const g=ctx.createRadialGradient(0,0,0,0,0,blackhole.radius);g.addColorStop(0,'rgba(0,0,0,0)');g.addColorStop(0.8,'#ff00ff');g.addColorStop(1,'#000000');ctx.fillStyle=g;ctx.beginPath();ctx.arc(0,0,blackhole.radius,0,2*Math.PI);ctx.fill();ctx.restore(); }
+        function drawExpGem(gem) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.translate(gem.x, gem.y);
+            ctx.rotate(gameTime / 100);
+            const spikes = 5;
+            const outerRadius = gem.radius * 1.5;
+            const innerRadius = gem.radius * 0.7;
+            let rot = Math.PI / 2 * 3;
+            let x = 0;
+            let y = 0;
+            let step = Math.PI / spikes;
+            ctx.moveTo(0, -outerRadius);
+            for (let i = 0; i < spikes; i++) {
+                x = Math.cos(rot) * outerRadius;
+                y = Math.sin(rot) * outerRadius;
+                ctx.lineTo(x, y);
+                rot += step;
+                x = Math.cos(rot) * innerRadius;
+                y = Math.sin(rot) * innerRadius;
+                ctx.lineTo(x, y);
+                rot += step;
+            }
+            ctx.lineTo(0, -outerRadius);
+            ctx.closePath();
+            ctx.fillStyle = '#ffff00';
+            ctx.shadowColor = '#ffff00';
+            ctx.shadowBlur = 15;
+            ctx.fill();
+            ctx.restore();
+        }
+        function drawParticle(p) { ctx.globalAlpha=p.alpha;ctx.beginPath();ctx.arc(p.x,p.y,p.radius,0,2*Math.PI);ctx.fillStyle=p.color;ctx.fill();ctx.globalAlpha=1.0; }
+        function updateUI() { const ui=document.getElementById('ui-container');ui.innerHTML = `<div class="ui-element"><div class="ui-label">생존 시간</div><div class="ui-value">${Math.floor(gameTime/1000)}</div></div><div class="ui-element"><div class="ui-label">레벨</div><div class="ui-value">${player.level}</div></div><div class="ui-element"><div class="ui-label">체력</div><div id="hp-bar-container"><div id="hp-bar" style="width:${player.hp/player.maxHp*100}%"></div></div></div><div class="ui-element"><div class="ui-label">궁극기</div><div id="ultimate-gauge-container"><div id="ultimate-gauge" style="width:${player.ultimateGauge/player.maxUltimateGauge*100}%"></div></div></div>`; document.getElementById('xp-bar').style.width=`${(player.xp/player.xpToNextLevel)*100}%`;const ub=document.getElementById('ultimate-button');if(player.ultimateGauge>=player.maxUltimateGauge){ub.style.display='block';}else{ub.style.display='none';} }
+
+        // --- 유틸리티 함수 ---
+        function createScreenShake(i, d) { canvas.screenShake = { intensity: i, duration: d, timer: 0 }; }
+        function applyScreenShake() { if (canvas.screenShake && canvas.screenShake.timer < canvas.screenShake.duration) { canvas.screenShake.timer += 16; const x = (Math.random() - .5) * canvas.screenShake.intensity, y = (Math.random() - .5) * canvas.screenShake.intensity; ctx.translate(x, y); } else { canvas.screenShake = null; } }
+        function createParticleExplosion(x,y,c,n){for(let i=0;i<n;i++)particles.push({x,y,vx:(Math.random()-.5)*8,vy:(Math.random()-.5)*8,radius:Math.random()*4+1,color:c,alpha:1});}
+        function showEvolutionToast(n){const t=document.getElementById('evolution-toast');t.textContent=`진화: ${weaponData[n].name}!`;t.style.display='block';setTimeout(()=>t.style.display='none',2500);}
+        function findNearestEnemies(count) { return [...enemies].sort((a,b)=>Math.hypot(player.x-a.x,player.y-a.y)-Math.hypot(player.x-b.x,player.y-b.y)).slice(0,count); }
+        function findNearestEnemy(source) { let c=null,d=Infinity;enemies.forEach(e=>{if(e===source)return;const dist=Math.hypot(source.x-e.x,source.y-e.y);if(dist<d){c=e;d=dist;}});return c; }
+        function pointLineSegmentDistance(px,py,x1,y1,x2,y2){const l2=(x1-x2)**2+(y1-y2)**2;if(l2===0)return Math.hypot(px-x1,py-y1);let t=((px-x1)*(x2-x1)+(py-y1)*(y2-y1))/l2;t=Math.max(0,Math.min(1,t));const pX=x1+t*(x2-x1),pY=y1+t*(y2-y1);return Math.hypot(px-pX,py-pY);}
+        function isCollidingWithObstacles(x, y, radius, damage = 0) {
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                const obs = obstacles[i];
+                let collided = false;
+                if (obs.type === 'rect') {
+                    if (x + radius > obs.x && x - radius < obs.x + obs.width && y + radius > obs.y && y - radius < obs.y + obs.height) {
+                        collided = true;
+                    }
+                } else { // circle
+                    if (Math.hypot(x - obs.x, y - obs.y) < radius + obs.radius) {
+                        collided = true;
+                    }
+                }
+                if(collided) {
+                    if(damage > 0) {
+                        obs.hp -= damage;
+                    }
+                    return true;
+                }
+            }
+            return false;
+        }
+        
+        // --- Gemini API 호출 ---
+        async function getAIAdvice() {
+            const adviceContent = document.getElementById('ai-advice-content');
+            const adviceModal = document.getElementById('ai-advice-modal');
+            adviceModal.style.display = 'block';
+            adviceContent.textContent = 'AI 코치가 당신의 플레이를 분석하고 있습니다...';
+            const weaponList = player.weapons.map(w => `${w.name} (Lv.${w.level})`).join(', ') || '없음';
+            const passiveList = Object.keys(passiveItems).map(key => `${passiveData[key].name.split(' (')[0]} (Lv.${passiveItems[key]})`).join(', ') || '없음';
+            const artifactList = player.artifacts.map(art => artifactData[art].name).join(', ') || '없음';
+            const prompt = `You are an expert coach for a roguelite shooting game called "Neon Survivor". A player just finished a game, and here is their record:\n- Survival Time: ${Math.floor(gameTime / 1000)} seconds\n- Final Level: ${player.level}\n- Weapons: ${weaponList}\n- Passives: ${passiveList}\n- Artifacts: ${artifactList}\n\nBased on this record, provide one specific, encouraging, and helpful tip to help them do better next time. For example, mention a missed weapon evolution or a good item synergy. Use a friendly, cool, and supportive coaching tone. Respond in Korean within 2-3 concise sentences.`;
+            const apiKey = ""; const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+            try {
+                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }) });
+                const result = await response.json();
+                if (result.candidates && result.candidates.length > 0 && result.candidates[0].content.parts.length > 0) { adviceContent.textContent = result.candidates[0].content.parts[0].text; } else { throw new Error('Invalid response'); }
+            } catch (error) { console.error('Failed to get AI advice:', error); adviceContent.textContent = 'AI 코치와 연결하는 데 실패했습니다. 네트워크 상태를 확인하고 다시 시도해주세요.'; }
+        }
+
+        // --- 게임 루프 및 초기화 ---
+        function gameLoop() {
+            ctx.save();
+            if (canvas.screenShake) applyScreenShake();
+            update();
+            draw();
+            ctx.restore();
+            if (isGameRunning) animationFrameId = requestAnimationFrame(gameLoop);
+        }
+        
+        document.getElementById('start-button').innerHTML = '게임 시작';
+        document.getElementById('start-button').disabled = false;
+        document.querySelector('#start-screen p').innerHTML = '마우스를 클릭하여 이동하고 적들을 피하세요!<br>궁극기 게이지가 차면 궁극기 버튼을 눌러 필살기를 사용하세요!';
+    </script>
+</body>
+</html>
